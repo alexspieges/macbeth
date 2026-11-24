@@ -11,6 +11,8 @@
 #space{position:fixed;inset:0;z-index:-2;background:radial-gradient(ellipse at 15% 20%,#32145b 0,transparent 38%),radial-gradient(ellipse at 85% 70%,#241052 0,transparent 42%),linear-gradient(145deg,#080511,#10091f 55%,#080511)}
 #space:before,#space:after{content:"";position:absolute;inset:-30%;background-image:radial-gradient(2px 2px at 20% 30%,#fff 45%,transparent 55%),radial-gradient(1px 1px at 70% 65%,#d7baff 45%,transparent 55%),radial-gradient(1.5px 1.5px at 45% 80%,#fff 45%,transparent 55%),radial-gradient(1px 1px at 88% 18%,#caa4ff 45%,transparent 55%),radial-gradient(1px 1px at 12% 75%,#fff 45%,transparent 55%);background-size:390px 310px;animation:drift 95s linear infinite;opacity:.65}
 #space:after{background-size:570px 430px;animation:drift2 145s linear infinite;opacity:.35;transform:scale(1.2)}
+#galaxy{position:fixed;inset:0;width:100vw;height:100vh;z-index:-1;pointer-events:none;display:block}
+.galaxy-on #space:before,.galaxy-on #space:after{display:none}
 @keyframes drift{to{transform:translate3d(5%,3%,0) rotate(8deg)}}@keyframes drift2{to{transform:translate3d(-4%,-3%,0) rotate(-7deg)}}
 .nebula{position:fixed;width:55vw;height:55vw;border-radius:50%;filter:blur(65px);opacity:.12;z-index:-1;pointer-events:none;background:#9c4dff;animation:pulse 12s ease-in-out infinite alternate;top:15%;left:20%}@keyframes pulse{to{transform:translate(30vw,10vh) scale(1.25);opacity:.2}}
 header{max-width:1150px;margin:auto;padding:25px 24px 12px;display:flex;justify-content:space-between;align-items:center;gap:15px}.brand{font-weight:800;letter-spacing:.08em;color:#d9c2ff}.brand span{color:var(--purple)}nav{display:flex;gap:8px;flex-wrap:wrap}nav a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:20px;font-size:.9rem}nav a:hover{background:#ffffff12;color:white}
@@ -25,7 +27,7 @@ button,.btn{border:1px solid var(--line);background:linear-gradient(135deg,#8e55
 </style>
 </head>
 <body>
-<div id="space"></div><div class="nebula"></div>
+<div id="space"></div><canvas id="galaxy" aria-hidden="true"></canvas><div class="nebula"></div>
 <header><div class="brand">THE <span>PURPLE</span> ARCHIVE</div><nav><a href="#themes">Themes</a><a href="#quotes">Quotes</a><a href="#quiz">Quiz</a><a href="#overview">Overview</a></nav></header>
 <main>
 <section class="hero">
@@ -122,6 +124,62 @@ function showQuestion(){locked=false;let q=current[index];document.getElementByI
 function chooseAnswer(n){if(locked)return;locked=true;let q=current[index];if(n===q.a)score++;document.querySelectorAll('.answer').forEach((b,i)=>{b.disabled=true;if(i===q.a)b.classList.add('correct');else if(i===n)b.classList.add('wrong');});let f=document.getElementById('feedback');f.textContent=(n===q.a?'Correct! ':'Not quite. ')+q.why;f.classList.add('show');document.getElementById('liveScore').textContent=`Score: ${score}`;document.getElementById('next').disabled=false;}
 function showResults(){document.getElementById('qMeta').textContent='Quiz complete';document.getElementById('progressBar').style.width='100%';let pct=Math.round(score/current.length*100);let message=pct===100?'Excellent work — you know these ideas really well.':pct>=70?'Strong effort. Review the explanations for anything you missed.':'Good practice. Revisit the quote library and try again.';document.getElementById('quizContent').innerHTML=`<div class="score">${score}/${current.length}</div><h3>${pct}% — ${message}</h3><p class="muted">Try another round to strengthen your quotation knowledge.</p><button id="again">Try again</button>`;document.getElementById('again').onclick=startQuiz;}
 renderQuotes();resetQuizIntro();
+</script>
+<script>
+/* Animated spiral galaxy */
+(function(){
+const c=document.getElementById('galaxy');const ctx=c&&c.getContext('2d');if(!ctx)return;
+document.documentElement.classList.add('galaxy-on');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W,H,dpr,cx,cy,R,stars=[],field=[],dust=[],meteors=[],sprites={};
+let mx=0,my=0,tx=0,ty=0,scrollY0=0,t=0,last=performance.now();
+const ARMS=3,TILT=0.42,palette=['#fff6e8','#ffe3c4','#f3d4ff','#d6b2ff','#b48aff','#9a6bff','#7fa8ff','#ff9ee6'];
+function sprite(col,size){const k=col+size;if(sprites[k])return sprites[k];const s=document.createElement('canvas');s.width=s.height=size*2;const g=s.getContext('2d');const gr=g.createRadialGradient(size,size,0,size,size,size);gr.addColorStop(0,'#fff');gr.addColorStop(.18,col);gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,size*2,size*2);return sprites[k]=s;}
+function rnd(a,b){return a+Math.random()*(b-a)}
+function gauss(){return (Math.random()+Math.random()+Math.random()-1.5)/1.5}
+function build(){
+dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;c.width=W*dpr;c.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+cx=W*(W>800?.68:.5);cy=H*.45;R=Math.max(W,H)*.55;
+const n=Math.round(Math.min(9000,W*H/170));stars=[];
+for(let i=0;i<n;i++){
+const arm=i%ARMS,r=Math.pow(Math.random(),1.6);const spread=(0.06+0.28*(1-r))*gauss();
+const ang=arm*2*Math.PI/ARMS+r*4.6+spread*2.2;const core=r<.12;
+const ci=core?(Math.random()<.6?0:1):Math.min(palette.length-1,Math.floor(2+r*5+gauss()*1.4)%palette.length);
+stars.push({r:r,a:ang,z:gauss()*(0.12*(1-r)+.02),s:rnd(.35,1.4)*(core?1.3:1),col:palette[Math.abs(ci)],tw:rnd(0,6.28),ts:rnd(.5,2.5),b:Math.random()<.025});}
+// bulge
+for(let i=0;i<n*.18;i++){const r=Math.abs(gauss())*.13;stars.push({r:r,a:rnd(0,6.28),z:gauss()*.08,s:rnd(.4,1.5),col:palette[Math.random()<.7?0:1],tw:rnd(0,6.28),ts:rnd(.5,2),b:Math.random()<.01});}
+field=[];for(let L=0;L<3;L++){const m=Math.round(W*H/(5200-L*1400));for(let i=0;i<m;i++)field.push({x:Math.random()*W,y:Math.random()*H,s:rnd(.3,1)*(L*.5+.6),d:(L+1)*.35,tw:rnd(0,6.28),ts:rnd(.3,2),col:palette[Math.floor(rnd(0,palette.length))]});}
+dust=[];for(let i=0;i<70;i++){const arm=i%ARMS,r=rnd(.15,.95);dust.push({r:r,a:arm*2*Math.PI/ARMS+r*4.6+gauss()*.35,size:rnd(.08,.22)*R,col:Math.random()<.5?'155,77,255':(Math.random()<.5?'224,120,255':'90,110,255'),o:rnd(.025,.07)});}
+}
+function proj(r,a,z,rot){const ang=a+rot/(.25+r*1.4);const x=Math.cos(ang)*r*R,y=Math.sin(ang)*r*R;return[cx+x+tx*(20+r*40),cy+y*TILT+z*R*.5-scrollY0*.15+ty*(20+r*40),y];}
+function frame(now){
+const dt=Math.min(50,now-last);last=now;if(!reduce)t+=dt*.001;
+tx+=(mx-tx)*.04;ty+=(my-ty)*.04;scrollY0+=((window.scrollY||0)-scrollY0)*.08;
+ctx.globalCompositeOperation='source-over';ctx.clearRect(0,0,W,H);
+ctx.globalCompositeOperation='lighter';
+// background field
+for(const f of field){const tw=.55+.45*Math.sin(t*f.ts+f.tw);let x=(f.x+tx*f.d*25-t*f.d*4)%W;if(x<0)x+=W;let y=(f.y+ty*f.d*25-scrollY0*f.d*.08)%H;if(y<0)y+=H;ctx.globalAlpha=tw*.8;ctx.fillStyle=f.col;ctx.fillRect(x,y,f.s,f.s);}
+const rot=t*.05;
+// nebula dust along arms
+for(const d of dust){const p=proj(d.r,d.a,0,rot);const g=ctx.createRadialGradient(p[0],p[1],0,p[0],p[1],d.size);g.addColorStop(0,'rgba('+d.col+','+d.o+')');g.addColorStop(1,'rgba('+d.col+',0)');ctx.globalAlpha=1;ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(p[0],p[1],d.size,d.size*TILT*1.4,0,0,6.283);ctx.fill();}
+// core glow
+const cg=ctx.createRadialGradient(cx+tx*20,cy-scrollY0*.15+ty*20,0,cx+tx*20,cy-scrollY0*.15+ty*20,R*.32);cg.addColorStop(0,'rgba(255,240,225,.55)');cg.addColorStop(.15,'rgba(230,170,255,.25)');cg.addColorStop(.5,'rgba(140,70,255,.08)');cg.addColorStop(1,'rgba(80,30,180,0)');ctx.globalAlpha=1;ctx.fillStyle=cg;ctx.beginPath();ctx.ellipse(cx+tx*20,cy-scrollY0*.15+ty*20,R*.32,R*.32*TILT*1.3,0,0,6.283);ctx.fill();
+// galaxy stars
+for(const s of stars){const p=proj(s.r,s.a,s.z,rot);if(p[0]<-20||p[0]>W+20||p[1]<-20||p[1]>H+20)continue;const depth=.75+.25*(p[2]/R+1)/2;const tw=.6+.4*Math.sin(t*s.ts+s.tw);ctx.globalAlpha=Math.min(1,tw*depth*(1.05-s.r*.55));
+if(s.b){const sp=sprite(s.col,12);ctx.drawImage(sp,p[0]-6*s.s*1.6,p[1]-6*s.s*1.6,12*s.s*1.6,12*s.s*1.6);}else{ctx.fillStyle=s.col;const z=s.s*depth;ctx.fillRect(p[0],p[1],z,z);}}
+// shooting stars
+if(!reduce&&Math.random()<dt/2600)meteors.push({x:rnd(0,W),y:rnd(0,H*.5),vx:rnd(.5,1.1)*(Math.random()<.5?-1:1),vy:rnd(.25,.55),life:1});
+ctx.lineCap='round';
+for(let i=meteors.length-1;i>=0;i--){const m=meteors[i];m.x+=m.vx*dt;m.y+=m.vy*dt;m.life-=dt/900;if(m.life<=0){meteors.splice(i,1);continue;}const g=ctx.createLinearGradient(m.x,m.y,m.x-m.vx*120,m.y-m.vy*120);g.addColorStop(0,'rgba(255,255,255,'+m.life+')');g.addColorStop(.3,'rgba(220,170,255,'+m.life*.5+')');g.addColorStop(1,'rgba(160,100,255,0)');ctx.globalAlpha=1;ctx.strokeStyle=g;ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x-m.vx*120,m.y-m.vy*120);ctx.stroke();ctx.drawImage(sprite('#f3d4ff',10),m.x-5,m.y-5,10,10);}
+ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+if(!reduce)raf=requestAnimationFrame(frame);
+}
+let raf;build();
+addEventListener('resize',()=>{build();if(reduce)frame(performance.now());});
+addEventListener('pointermove',e=>{mx=(e.clientX/W-.5)*2;my=(e.clientY/H-.5)*2;},{passive:true});
+document.addEventListener('visibilitychange',()=>{if(reduce)return;if(document.hidden)cancelAnimationFrame(raf);else{last=performance.now();raf=requestAnimationFrame(frame);}});
+raf=requestAnimationFrame(frame);
+})();
 </script>
 </body>
 </html>
